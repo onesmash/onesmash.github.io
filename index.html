@@ -1,0 +1,527 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>梦幻岛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="徐晖">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="xuhui122000" />
+    <meta name="twitter:title" content="梦幻岛" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/Tinny.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/Tinny.jpg">
+    
+
+	
+	<link href="/highlight/styles/railscasts.css" rel="stylesheet">
+	<script src="/highlight/highlight.pack.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+	
+
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="梦幻岛">梦幻岛</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+                    <ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+					<li>
+					
+					</li>
+                <li><div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div></li>
+
+				</ul>
+			</nav>	
+</div>
+
+    </header>
+    <div id="container" class="clearfix">
+      <div id="main">
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2016/11/10/Trie搜索树的应用/" title="Trie搜索树的应用" itemprop="url">
+      
+        Trie搜索树的应用
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >最近在折腾一个代理的App，要实现一个根据域名来决定是否走代理的功能。实现的思路很简单，获取被墙屏蔽的域名列表，根据这个列表来判断是否需要走代理。被屏蔽的域名列表github上有项目在维护（点击查看）。有了列表之后就可以通过编写Proxy auto-config告诉浏览器选择代理</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2016-11-09T16:00:00.000Z" itemprop="datePublished">2016-11-10</time>
+      
+          <a href="/2016/11/10/Trie搜索树的应用/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2016/11/01/加解密流程及安全相关展开/" title="加解密流程及安全相关展开" itemprop="url">
+      
+        加解密流程及安全相关展开
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >###加解密流程###
+一般应用会用到两种加密技术：对称加密和非对称加密。所谓对称加密就是数据发送接收双方加密解密用的是相同的密钥。由于对称加密技术加解密的速度相对于非对称加密有明显的优势，所以传输数据一般使用对称加密。因为对称加密的密钥是在易信客户端生成的，需要加密之后传给服务</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2016-10-31T16:00:00.000Z" itemprop="datePublished">2016-11-01</time>
+      
+          <a href="/2016/11/01/加解密流程及安全相关展开/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2016/10/22/DarkNetSW/" title="DarkNetSW" itemprop="url">
+      
+        DarkNetSW
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >iOS平台上的Shdowsocks客户端。</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2016-10-21T16:00:00.000Z" itemprop="datePublished">2016-10-22</time>
+      
+          <a href="/2016/10/22/DarkNetSW/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2016/08/21/c++的返回值优化以及右值拷贝/" title="C++的返回值优化以及右值拷贝" itemprop="url">
+      
+        C++的返回值优化以及右值拷贝
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >###返回值优化###
+返回值优化是一个编译器优化行为，它可以减少函数调用返回时临时对象的产生以及拷贝行为。以下面代码为例
+class BigData {
+    public:
+    BigData(const char* data, size_t size)
+    {
+ </p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2016-08-20T16:00:00.000Z" itemprop="datePublished">2016-08-21</time>
+      
+          <a href="/2016/08/21/c++的返回值优化以及右值拷贝/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2016/06/28/SQLite的事务隔离及并发控制/" title="SQLite的事务隔离及并发控制" itemprop="url">
+      
+        SQLite的事务隔离及并发控制
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >传统的数据库必须具备“ACID”，即原子性（Atomic）、一致性（Consistency）、隔离性（Isolation）和持久性（Durability）这四个特性。下面的文章主要阐述SQLite对隔离性的支持，以及对数据库并发控制的影响。
+数据库的隔离性决定了多个并发事务同时对</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2016-06-27T16:00:00.000Z" itemprop="datePublished">2016-06-28</time>
+      
+          <a href="/2016/06/28/SQLite的事务隔离及并发控制/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2016/06/28/mmap的使用及性能分析/" title="mmap的使用及性能分析" itemprop="url">
+      
+        mmap的使用及性能分析
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >###Page Cache###
+Page cache是内核缓存文件内容的内存块，一般大小为4KB，可以通过sysconf(_SC_PAGE_SIZE)获取当前系统page cache大小。Page cache的引入解决了与文件操作先关的两个严重的问题：
+
+跟内存相比磁盘的读写难</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2016-06-27T16:00:00.000Z" itemprop="datePublished">2016-06-28</time>
+      
+          <a href="/2016/06/28/mmap的使用及性能分析/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2016/01/07/Git使用-merge和rebase介绍/" title="Git使用：merge和rebase介绍" itemprop="url">
+      
+        Git使用：merge和rebase介绍
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >##merge
+图 1
+如图 1所示要将experiment分支合并到master，只要运行：
+git checkout master
+git merge experiment
+git在内部执行了如下几个操作：
+
+寻找到C3,C4的最近祖先C2
+将C2,C3和C4进行三方合并
+生</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2016-01-06T16:00:00.000Z" itemprop="datePublished">2016-01-07</time>
+      
+          <a href="/2016/01/07/Git使用-merge和rebase介绍/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2013/08/28/lua-number2int32/" title="Lua number到int32的转换" itemprop="url">
+      
+        Lua number到int32的转换
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >在Lua源代码的llimits.h头文件中有这么一段宏定义：
+union luai_Cast { double l_d; LUA_INT32 l_p[2]; };
+
+#define lua_number2int32(i,n,t) \
+    { LUAI_EXTRAIEEE \
+</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2013-08-27T16:00:00.000Z" itemprop="datePublished">2013-08-28</time>
+      
+          <a href="/2013/08/28/lua-number2int32/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2013/08/13/lua-nan-trick/" title="Lua NaN Trick" itemprop="url">
+      
+        Lua NaN Trick
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >Lua实现中如果没有定义LUA_NANTRICK这个宏，那么他的TValus结构是这么定义的：
+typedef struct {
+    union {
+        GCObject *gc;
+        void *p;
+        lua_CFunction f;</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2013-08-12T16:00:00.000Z" itemprop="datePublished">2013-08-13</time>
+      
+          <a href="/2013/08/13/lua-nan-trick/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+  <section class="post" itemscope itemprop="blogPost">
+  <article>
+    <h1 itemprop="name">
+      
+        <a href="/2013/06/08/C-Scheme-flow-control/" title="C与Scheme流程控制比较" itemprop="url">
+      
+        C与Scheme流程控制比较
+      </a>
+    </h1>
+    
+     
+           <p itemprop="description" >##C语言##函数内部的流程控制有:
+
+if … else …
+while 
+break
+continue
+goto
+
+函数间流程控制：
+
+setjmp()和longjmp()
+
+一个程序的状态依赖于当前内存内容（如代码、全局变量、堆、栈）和寄存器的内容。寄存器内容包括stack</p>
+        
+    
+    <p class="article-more-link">
+      <time datetime="2013-06-07T16:00:00.000Z" itemprop="datePublished">2013-06-08</time>
+      
+          <a href="/2013/06/08/C-Scheme-flow-control/">阅读更多&raquo;</a>
+      
+    </p>
+
+  </article>
+</section>
+
+
+</div>
+      
+<div id="asidepart">
+<div id="authorInfo">
+	
+		<div class="author-logo"></div>		
+	
+	
+	<section class="author-info">
+		
+			<p> 举个栗子…… </p>
+		
+		
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1824970160" target="_blank" title="weibo"></a>
+		
+		
+		<a href="https://twitter.com/xuhui122000" target="_blank" title="twitter"></a>
+		
+		
+		<a href="https://github.com/onesmash" target="_blank" title="github"></a>
+		
+		
+	</div>
+</div>
+<aside class="clearfix">
+
+
+  
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">十月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">六月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li></ul>
+  </div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/App/" title="App">App<sup>1</sup></a></li>
+		
+			<li><a href="/tags/C/" title="C++">C++<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Lua/" title="Lua">Lua<sup>2</sup></a></li>
+		
+			<li><a href="/tags/ObjC/" title="ObjC">ObjC<sup>1</sup></a></li>
+		
+			<li><a href="/tags/SQLite/" title="SQLite">SQLite<sup>1</sup></a></li>
+		
+			<li><a href="/tags/iOS/" title="iOS">iOS<sup>3</sup></a></li>
+		
+			<li><a href="/tags/shadowsocks/" title="shadowsocks">shadowsocks<sup>1</sup></a></li>
+		
+			<li><a href="/tags/代理/" title="代理">代理<sup>1</sup></a></li>
+		
+			<li><a href="/tags/安全/" title="安全">安全<sup>1</sup></a></li>
+		
+			<li><a href="/tags/工具/" title="工具">工具<sup>1</sup></a></li>
+		
+			<li><a href="/tags/操作系统/" title="操作系统">操作系统<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据库/" title="数据库">数据库<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据结构/" title="数据结构">数据结构<sup>1</sup></a></li>
+		
+			<li><a href="/tags/语言/" title="语言">语言<sup>3</sup></a></li>
+		
+		</ul>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  //back to top
+  function backToTop(){
+    var buttonHTML = $("<a href=\"#top\" id=\"back-top\">" + "<span>Back to Top</span></a>");
+    buttonHTML.appendTo($("body"));
+    var buttonToTop = $("#back-top");
+    // hide #back-top first
+    buttonToTop.hide();
+
+    // fade in #back-top
+    $(function() {
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                buttonToTop.fadeIn();
+            } else {
+                buttonToTop.fadeOut();
+            }
+        });
+        // scroll body to 0px on click
+        buttonToTop.click(function() {
+            $('body,html').animate({
+                scrollTop: 0
+            }, 800);
+            return false;
+        });
+    });
+  }
+  backToTop();
+
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      ta = $('#toc.toc-aside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+        
+    }
+  });
+
+  var show = true;
+  c.click(function(){
+    if(show == true){
+        a.addClass('fadeOut').css('display', 'none');
+        ta.css('display', 'block').addClass('fadeIn');
+        m.addClass('moveMain');  
+    }else{
+        a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');     
+        ta.css('display', 'none'); 
+        m.removeClass('moveMain');
+        $('#toc.toc-aside').css('display', 'none');
+    }
+    show = !show;
+  });
+});
+</script>
+
+
+
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-79992544-1', 'onesmash.github.io/');  
+ga('send', 'pageview');
+</script>
+
+
+  </body>
+ </html>

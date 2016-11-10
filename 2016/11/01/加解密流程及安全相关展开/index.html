@@ -1,0 +1,414 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>加解密流程及安全相关展开 | 梦幻岛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="徐晖">
+    
+    <meta name="description" content="###加解密流程###
+一般应用会用到两种加密技术：对称加密和非对称加密。所谓对称加密就是数据发送接收双方加密解密用的是相同的密钥。由于对称加密技术加解密的速度相对于非对称加密有明显的优势，所以传输数据一般使用对称加密。因为对称加密的密钥是在易信客户端生成的，需要加密之后传给服务器端，对该密钥的加密">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="xuhui122000" />
+    <meta name="twitter:title" content="加解密流程及安全相关展开 | 梦幻岛" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/Tinny.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/Tinny.jpg">
+    
+
+	
+	<link href="/highlight/styles/railscasts.css" rel="stylesheet">
+	<script src="/highlight/highlight.pack.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+	
+
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="梦幻岛">梦幻岛</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+                    <ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+					<li>
+					
+					</li>
+                <li><div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div></li>
+
+				</ul>
+			</nav>	
+</div>
+
+    </header>
+    <div id="container" class="clearfix">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2016/11/01/加解密流程及安全相关展开/" title="加解密流程及安全相关展开" itemprop="url">加解密流程及安全相关展开</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://onesmash.github.io" title="徐晖">徐晖</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2016-10-31T16:00:00.000Z" itemprop="datePublished">2016-11-01</time>
+    更新日期:<time datetime="2016-11-01T15:17:43.000Z" itemprop="dateModified">2016-11-01</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>###加解密流程###</p>
+<p>一般应用会用到两种加密技术：对称加密和非对称加密。所谓对称加密就是数据发送接收双方加密解密用的是相同的密钥。由于对称加密技术加解密的速度相对于非对称加密有明显的优势，所以传输数据一般使用对称加密。因为对称加密的密钥是在易信客户端生成的，需要加密之后传给服务器端，对该密钥的加密使用了RSA非对称加密。在非对称加密体系中密钥分公钥和私钥，公钥和私钥都可以对明文进行加密，但只有私钥可以对密文进行解密。一般服务器端存了私钥，在客户端存了公钥，传输对称加密密钥的时候客户端使用公钥对其加密然后传输给服务器。当服务器端收到客户端发过来的密钥之后，双方就可以对传输的数据进行加解密。</p>
+<p>目前开发的App加密流程如下：</p>
+<ol>
+<li>客户端生成对称加密密钥</li>
+<li>客户端使用RSA公钥对密钥加密传输给服务器</li>
+<li>服务器使用私钥解码出传过来的密钥，双方使用协商好的密钥对传输的数据进行加解密</li>
+</ol>
+<p>对于客户端来说公钥被窃取了也没有多大的问题，但是保存在服务器的私钥被窃取了那整个加密系统就形同虚设了。必须要跟换私钥公钥，重新发布客户端让用户升级。</p>
+<p>###服务器下发公钥###<br>为了避免重新发布客户端并且强制用户升级，我们会想让服务器下发公钥。一旦让服务器下发公钥就会引入一个更大的安全隐患，那就是可能遭到中间人攻击(<a href="https://en.wikipedia.org/wiki/Man-in-the-middle_attack" target="_blank" rel="external">Man-in-the-middle attack</a>)。我们用一个现实中的场景来解释中间人攻击：我们客户端连接到一个被黑客控制的路由器，所有的数据传输都被监控，服务器传输给客户端的公钥被篡改了，客户端拿到的不是服务器下发的公钥而是黑客生成的公钥（黑客拥有私钥），客户端使用假的公钥加密数据，黑客用手中的私钥解密密文然后，再用截获的真正的公钥加密数据传输给服务器。这么一来客户端和服务器端都能正确的加密解密，但传输的数据已经被出于中间的黑客掌握。</p>
+<p>###https是否真的安全###<br>https采用<a href="https://en.wikipedia.org/wiki/Transport_Layer_Security#Security" target="_blank" rel="external">SSL/TLS协议</a>来保证数据传输的安全。使用https通讯之前客户端和服务器需要使用SSL/TLS协议来进行握手，步骤如下：</p>
+<ol>
+<li>服务器向客户端发送证书，证书中包括公钥及一些其他信息，其中最重要的是还包括了一份该证书的电子签名</li>
+<li>客户端通过电子签名验证该证书的真伪</li>
+<li>证书验证通过后，客户端就和服务器协商对称加密密钥，所有的协商数据都通过证书中的公钥加密</li>
+</ol>
+<p>可以看到整个流程跟我们上节提到的服务器下发公钥的流程基本上是一样的，不同的是多了一个证书真伪验证的过程。</p>
+<p><img src="./证书1.jpg" alt="证书"></p>
+<p>上图是支付宝下发给浏览器的证书，我们可以看看到最重要的三个域：</p>
+<ol>
+<li>证书签发机构Certificate Authorities (CAs)</li>
+<li>公钥</li>
+<li>签名</li>
+</ol>
+<p>从中我们可以看到电子签名是需要第三方“可信赖”的机构签的（显然需要钱）。</p>
+<p>电子签名也是非对称加密技术的应用，一般使用流程如下：</p>
+<ol>
+<li>计算需要签名数据的hash值，对该该hash值使用私钥加密生成电子签名</li>
+<li>验证者使用公钥解码出hash值，并且与自己对该数据计算的hash值进行比对，如果相同则可以认为数据没有被篡改</li>
+</ol>
+<p>从上面流程可以看到要验证电子签名的真伪，需要一把签名机构给的公钥，这么一来问题又来了，这个公钥怎么传输？如果通过网络传输不又要被中间人攻击了吗？这把公钥是不通过网络传输来获取的，而是由浏览器厂商打包到浏览器中随着浏览器一起发布（一般浏览器会打包进差不多600多家签名机构的根证书），在验证签名的过程中浏览器会根据证书中的签发机构信息找到该机构的根证书，再利用该根证书中的公钥来验证签名。</p>
+<p>看起来一切都很完美，无懈可击啊！但真的是这样吗？我们可以看到整个https的安全是建立在CAs和浏览器开发厂商之上的，假如某个CA机构被黑或者迫于政府的压力签了一个假冒的证书出来（假冒谷歌或者其他的……），又或者浏览器开发商迫于政府的压力对某些假冒的证书开绿灯。这些并不是异想天开的事情，针对https的攻击每天都在发生，参见<a href="https://www.eff.org/deeplinks/2011/10/how-secure-https-today" target="_blank" rel="external">[1]</a><a href="http://arstechnica.com/ security/2013/09/spooks-break-most-internet-crypto-but-how/" target="_blank" rel="external">[2]</a><a href="https://www.eff.org/deeplinks/ 2011/08/iranian-man-middle-attack-against-google" target="_blank" rel="external">[3]</a><a href="https://www.schneier.com/blog/archives/2013/09/new_nsa_leak_sh.html" target="_blank" rel="external">[4]</a>。</p>
+<p>所以如果你在干秘密的事情，https并不一定可靠！</p>
+<p>有什么机制来替换CAs，这值得思考。</p>
+<p>引用:</p>
+<p>[1] P. Eckersley, “How secure is HTTPS today? How often is it attacked?”, Electronic Frontier Foundation, <a href="https://www.eff.org/deeplinks/2011/10/how-secure-https-today" target="_blank" rel="external">https://www.eff.org/deeplinks/2011/10/how-secure-https-today</a> (6 December 2013)</p>
+<p>[2] “Spooks break most Internet crypto, but how?”, Ars Technica, <http: 2013="" arstechnica.com="" security="" 09="" spooks-break-most-internet-crypto-but-how=""> (6 December 2013).</http:></p>
+<p>[3]  “Iranian Man-in-the-Middle Attack Against Google Demonstrates Dangerous Weakness of Certificate Authorities”, Electronic Frontier Foundation, <https: 2011="" www.eff.org="" deeplinks="" 08="" iranian-man-middle-attack-against-google=""> (6 December 2013). </https:></p>
+<p>[4] “New NSA Leak Shows MITM Attacks Against Major Internet Services”, Schneier on Security, <a href="https://www.schneier.com/blog/archives/2013/09/new_nsa_leak_sh.html" target="_blank" rel="external">https://www.schneier.com/blog/archives/2013/09/new_nsa_leak_sh.html</a> (6 December 2013).</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/安全/">安全</a>
+  </div>
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://onesmash.github.io/2016/11/01/加解密流程及安全相关展开/" data-title="加解密流程及安全相关展开 | 梦幻岛" data-tsina="1824970160" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2016/11/10/Trie搜索树的应用/" title="Trie搜索树的应用">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  Trie搜索树的应用</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2016/10/22/DarkNetSW/"  title="DarkNetSW">
+ <strong>NEXT:</strong><br/> 
+ <span>DarkNetSW
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+</div>  
+      
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div id="authorInfo">
+	
+		<div class="author-logo"></div>		
+	
+	
+	<section class="author-info">
+		
+			<p> 举个栗子…… </p>
+		
+		
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1824970160" target="_blank" title="weibo"></a>
+		
+		
+		<a href="https://twitter.com/xuhui122000" target="_blank" title="twitter"></a>
+		
+		
+		<a href="https://github.com/onesmash" target="_blank" title="github"></a>
+		
+		
+	</div>
+</div>
+<aside class="clearfix">
+
+
+  
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">十月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">六月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li></ul>
+  </div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/App/" title="App">App<sup>1</sup></a></li>
+		
+			<li><a href="/tags/C/" title="C++">C++<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Lua/" title="Lua">Lua<sup>2</sup></a></li>
+		
+			<li><a href="/tags/ObjC/" title="ObjC">ObjC<sup>1</sup></a></li>
+		
+			<li><a href="/tags/SQLite/" title="SQLite">SQLite<sup>1</sup></a></li>
+		
+			<li><a href="/tags/iOS/" title="iOS">iOS<sup>3</sup></a></li>
+		
+			<li><a href="/tags/shadowsocks/" title="shadowsocks">shadowsocks<sup>1</sup></a></li>
+		
+			<li><a href="/tags/代理/" title="代理">代理<sup>1</sup></a></li>
+		
+			<li><a href="/tags/安全/" title="安全">安全<sup>1</sup></a></li>
+		
+			<li><a href="/tags/工具/" title="工具">工具<sup>1</sup></a></li>
+		
+			<li><a href="/tags/操作系统/" title="操作系统">操作系统<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据库/" title="数据库">数据库<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据结构/" title="数据结构">数据结构<sup>1</sup></a></li>
+		
+			<li><a href="/tags/语言/" title="语言">语言<sup>3</sup></a></li>
+		
+		</ul>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  //back to top
+  function backToTop(){
+    var buttonHTML = $("<a href=\"#top\" id=\"back-top\">" + "<span>Back to Top</span></a>");
+    buttonHTML.appendTo($("body"));
+    var buttonToTop = $("#back-top");
+    // hide #back-top first
+    buttonToTop.hide();
+
+    // fade in #back-top
+    $(function() {
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                buttonToTop.fadeIn();
+            } else {
+                buttonToTop.fadeOut();
+            }
+        });
+        // scroll body to 0px on click
+        buttonToTop.click(function() {
+            $('body,html').animate({
+                scrollTop: 0
+            }, 800);
+            return false;
+        });
+    });
+  }
+  backToTop();
+
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      ta = $('#toc.toc-aside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+
+  var show = true;
+  c.click(function(){
+    if(show == true){
+        a.addClass('fadeOut').css('display', 'none');
+        ta.css('display', 'block').addClass('fadeIn');
+        m.addClass('moveMain');  
+    }else{
+        a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');     
+        ta.css('display', 'none'); 
+        m.removeClass('moveMain');
+        $('#toc.toc-aside').css('display', 'none');
+    }
+    show = !show;
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,240-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-79992544-1', 'onesmash.github.io/');  
+ga('send', 'pageview');
+</script>
+
+
+  </body>
+</html>

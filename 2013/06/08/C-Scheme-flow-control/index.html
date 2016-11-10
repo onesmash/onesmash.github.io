@@ -1,0 +1,624 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>C与Scheme流程控制比较 | 梦幻岛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="徐晖">
+    
+    <meta name="description" content="##C语言##函数内部的流程控制有:
+
+if … else …
+while 
+break
+continue
+goto
+
+函数间流程控制：
+
+setjmp()和longjmp()
+
+一个程序的状态依赖于当前内存内容（如代码、全局变量、堆、栈）和寄存器的内容。寄存器内容包括stack pointer（s">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="xuhui122000" />
+    <meta name="twitter:title" content="C与Scheme流程控制比较 | 梦幻岛" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/Tinny.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/Tinny.jpg">
+    
+
+	
+	<link href="/highlight/styles/railscasts.css" rel="stylesheet">
+	<script src="/highlight/highlight.pack.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+	
+
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="梦幻岛">梦幻岛</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+                    <ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+					<li>
+					
+					</li>
+                <li><div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div></li>
+
+				</ul>
+			</nav>	
+</div>
+
+    </header>
+    <div id="container" class="clearfix">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2013/06/08/C-Scheme-flow-control/" title="C与Scheme流程控制比较" itemprop="url">C与Scheme流程控制比较</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://onesmash.github.io" title="徐晖">徐晖</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2013-06-07T16:00:00.000Z" itemprop="datePublished">2013-06-08</time>
+    更新日期:<time datetime="2014-08-23T07:23:52.000Z" itemprop="dateModified">2014-08-23</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>##C语言##<br>函数内部的流程控制有:</p>
+<ul>
+<li>if … else …</li>
+<li>while </li>
+<li>break</li>
+<li>continue</li>
+<li>goto</li>
+</ul>
+<p>函数间流程控制：</p>
+<ul>
+<li>setjmp()和longjmp()</li>
+</ul>
+<p>一个程序的状态依赖于当前内存内容（如代码、全局变量、堆、栈）和寄存器的内容。寄存器内容包括stack pointer（sp），stack base pointer（bp）以及progran counter（pc）。C语言函数间的流程控制的实现简单的说就是setjmp()保存了寄存器的内容，而longjmp()则将先前保存的寄存器内容重新装载到寄存器中，从而将程序状态改变到setjmp()调用时的状态。</p>
+<p>一个setjmp()、longjmp()的例子：</p>
+<pre><code>#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;setjmp.h&gt;
+
+int main() {
+    jmp_buf env;
+    int i;
+
+    i = setjmp(env);
+    printf(&quot;i = %d\n&quot;,i);
+
+    if(i != 0) return 0;
+
+    longjmp(env, 2);
+    printf(&quot;Does this line get printed?\n&quot;);
+    return 0;
+}
+</code></pre><p>运行的结果：</p>
+<pre><code>i = 0
+i = 2
+</code></pre><p>第一次成功调用setjmp()返回0，然后调用longjmp()传入参数2，这导致程序返回到setjmp()并且返回2，继续执行满足if语句程序退出。</p>
+<p>使用setjmp()时，最常见的错误就是对setjmp()进封装，用一个函数来调用它。</p>
+<p>一个错误用例：</p>
+<pre><code>int a(char* s, jmp_buf env) {
+    int i;
+
+    i = setjmp(env);
+    printf(&quot;Setjmp returned -- i = %d, 0x%x\n&quot;, i, (unsigned)s);
+
+    printf(&quot;s = %s\n&quot;, s);
+    return i;
+}
+
+int b(int i, jmp_buf env) {
+    printf(&quot;In B: i = %d. Calling longjmp(env,i)\n&quot;,i);
+
+    longjmp(env, i);
+}
+
+int main() {
+    jmp_buf env;
+
+    if(a(&quot;Jim&quot;, env) != 0) return 0;
+    b(3, env);
+    return 0;
+}
+</code></pre><p>在本人的测试机上运行程序会有如下输出：</p>
+<pre><code>Setjmp returnd -- i = 0, 0x8048622
+s = Jim
+In B: i = 3. Calling longjmp(env, i)
+Setjmp returned -- i = 3, 0x3
+Segmentation fault (core dumped)
+</code></pre><p>我们来看看为什么会发生这种情况。当main()被调用的时候，栈的情形如下图所示：</p>
+<pre><code>         Stack        
+|----------------|
+|                |
+|                |
+|                |
+|                |
+   |                |
+|                | &lt;-------- sp
+| env[0]         |
+| env[1]         |
+| env[2]         |               pc = main
+| env[3]         |
+| ....           |
+| env[8]         |
+| other stuff    | &lt;------- bp
+|--------------- |
+</code></pre><p>当main()调用a()，参数由右到左被压入栈中，pc、bp寄存器的值也被压入栈中，同时pc、bp和sp寄存器存入新值，如下图所示：</p>
+<pre><code>                     Stack        
+               |----------------|
+               |                |
+               |                | &lt;--------- sp, bp
+/------------- | old bp in main |
+|              | old pc in main |
+|   &quot;Jim&quot; &lt;--- | s = &quot;Jim&quot;      |
+|         /--- | pointer to env | 
+|         \--&gt; | env[0]         |
+|              | env[1]         |
+|              | env[2]         |               pc = a
+|              | env[3]         |
+|              | ....           |
+|              | env[8]         |
+\------------&gt; | other stuff    | 
+               |--------------- |
+</code></pre><p>在a()中首先为局部变量i分配空间：</p>
+<pre><code>                      Stack        
+               |----------------|
+               |                | &lt;--------- sp
+               |      i         | &lt;--------- bp
+/------------- | old bp in main |
+|              | old pc in main |
+|   &quot;Jim&quot; &lt;--- | s = &quot;Jim&quot;      |
+|         /--- | pointer to env | 
+|         \--&gt; | env[0]         |
+|              | env[1]         |
+|              | env[2]         |               pc = a
+|              | env[3]         |
+|              | ....           |
+|              | env[8]         |
+\------------&gt; | other stuff    | 
+               |--------------- |
+</code></pre><p>接着调用setjmp()，这会使得当前sp、bp和pc寄存器的值被保存到env中。最后a()输出“i = 0”和“s = Jim”并且返回到main()中。现在栈中的情况看起来好像跟调用a()之前是一样的，除了env中保存了一些调用setjmp()时的老的寄存器的值，栈如下图所示：</p>
+<pre><code>       Stack        
+|----------------|
+|                |
+|                | 
+|                |
+|                |
+|                |
+|                | &lt;----------- sp
+| env[0]         |
+| env[1]         |
+| env[2]         |               pc = main
+| env[3]         |
+| ....           |
+| env[8]         |
+| other stuff    | &lt;------------ bp
+|--------------- |
+</code></pre><p>然后main()调用b()，栈如下图所示：</p>
+<pre><code>                     Stack        
+               |----------------|
+               |                |
+               |                | &lt;--------- sp, bp
+/------------- | old bp in main |
+|              | old pc in main |
+|              | i = 3          |
+|         /--- | pointer to env | 
+|         \--&gt; | env[0]         |
+|              | env[1]         |
+|              | env[2]         |               pc = b
+|              | env[3]         |
+|              | ....           |
+|              | env[8]         |
+\------------&gt; | other stuff    | 
+               |--------------- |
+</code></pre><p>在b()中longjmp()被调用，寄存器中的值被保存在env中的值所替换，也就是说现在寄存器中的值是替换成了a()调用setjmp()是的寄存器的值，但是栈中的值并没有变，现在的栈如下图所示：</p>
+<pre><code>                      Stack        
+               |----------------|
+               |                | &lt;--------- sp
+               | i = 2          | &lt;--------- bp
+/------------- | old bp in main |
+|              | old pc in main |
+|              | s??    = 3     |
+|         /--- | pointer to env | 
+|         \--&gt; | env[0]         |
+|              | env[1]         |
+|              | env[2]         |               pc = a
+|              | env[3]         |
+|              | ....           |
+|              | env[8]         |
+\------------&gt; | other stuff    | 
+               |--------------- |
+</code></pre><p>现在问题出来了参数s的值变成了3，当要输出字符串s时，访问了一个错误的地址最终导致了core。</p>
+<hr>
+<p>##Scheme语言##</p>
+<p>在C中setjmp()只是保存了寄存器的值，这就对流程控制有一些限制，只能在函数内部或者在更高层的调用函数间跳跃。可能大家回想如果我们不但保存寄存器的值，还保存栈中的值会这么样呢？既保存寄存器又保存栈的值正式某些编译器（如Guile，Gambit Scheme<a href="http://c2.com/cgi/wiki?ContinuationImplementation" title="ContinuationImplementation" target="_blank" rel="external">[1]</a>）实现scheme语言中的continuation的方法。(<em>吐槽:学术界和工程界的差别就在于一个把问题描述的尽量复杂抽象，而另一个却要尽量把问题简单化，虽然这种差别是有意义的，但写continuation的文档也太TM云里雾里了吧！好吧我理解能力差……</em>)</p>
+<p>###Continuation定义###</p>
+<p>在scheme语言中有一个函数叫做<strong>call-with-current-continuation</strong>(简称<strong>call/cc</strong>)，这个函数有一个参数（在下文中我们都称该参数为<em>receiver</em>)。<em>receiver</em>必须是一个只有一个参数的函数，并且这个参数就是<em>continuation</em>，它是一个形如(lambda (x) …)的lambda表达式。当(call/cc receiver)调用时内部会保存当前的寄存器和栈的值,宾且执行(receiver <em>continuation</em>)，当<em>continuation</em>调用时就会将保存的寄存器和栈值重新加载。我们可以用如下两个步骤来得到<em>continuation</em>函数的表达式：</p>
+<ol>
+<li>将表达式用口代替</li>
+<li>将结果表达式封装为一个形如(lambda (口) …)的lambda表达式</li>
+</ol>
+<p>我们来看一个例子，(+ 3 (* 4 (call/cc receiver)))产生的continuation表达式为：</p>
+<pre><code>（lambda (口)
+    (+ 3 (* 4 口)))
+</code></pre><p>###几个例子###</p>
+<p>1.从循环中退出</p>
+<p>首先定义一个循环函数：</p>
+<pre><code>(define infinite-loop
+  (lambda (procedure)
+    (letrec ((loop (lambda ()                    
+                     (procedure)
+                     (loop))))
+      (loop))))
+</code></pre><p>procedure执行时遇到某些条件我们可能想要退出循环，遗憾的是在scheme中并没有提供C语言中的return功能，但是我们可以通过call/cc来实现与return相同的功能，定义如下：</p>
+<pre><code>(define procedure
+  (lambda (args)
+    (let ((receiver (lambda (return)
+                      (infinite-loop
+                       (lambda ()
+                         (if *exit-condition-met*
+                             (return exit-value)
+                             *action-to-be-performed*))))))
+      (call/cc receiver))))
+</code></pre><p>在上面的代码中为了便于理解我们将传递给receiver的continuation命名为为return，这样看起来跟C语言中的return更为相似。</p>
+<p>利用上面的框架我们实现一个从0数到n并退出的程序：</p>
+<pre><code>(define count-to-n
+  (lambda (n)
+    (let ((receiver (lambda (return)
+                      (let ((count 0))
+                        (infinite-loop
+                         (lambda ()
+                           (if (= count n)
+                               (return count)
+                               (begin
+                                 (display &quot;The count is:&quot;)
+                                 (display count)
+                                 (display &quot;\n&quot;)
+                                 (set! count (+ count 1))))))))))
+      (call/cc receiver))))
+</code></pre><p>运行(count-to-n 4)结果为：</p>
+<pre><code>The count is:0
+The count is:1
+The count is:2
+The count is:3
+4
+</code></pre><p>根据上面提到的两个步骤，我们可以知道return形如(lambda (口) 口)，即(return count)的返回值既是count，所以最后一行的结果显示为4。</p>
+<p>2.利用continuation实现loop</p>
+<p>代码如下：</p>
+<pre><code>(define get-continuation-with-values
+  (lambda (values)
+    (let ((receiver (lambda (proc) (cons proc values))))
+      (call/cc receiver))))
+
+(define loop-with-current-value
+  (lambda (values)
+    (let ((here-with-values (get-continuation-with-values values)))
+      (let ((continue (car here-with-values))
+            (current-values (cdr here-with-values)))
+        (display current-values)
+        (if (&lt; (car current-values) 5)
+            (continue (cons continue
+                            (map (lambda (x) (+ x 1))
+                                 current-values)))
+            (display &quot;Done!&quot;))))))
+</code></pre><p>运行((loop-with-current-value ‘(1 2 3))得到结果：</p>
+<p>(1 2 3)(2 3 4)(3 4 5)(4 5 6)(5 6 7)Done!</p>
+<p>在get-continuation-with-values中将continuation与values连接在一起并且返回，((loop-with-current-value ‘(1 2 3))运行时，第一次调用get-continuation-with-values得到的值为’(continuation 1 2 3)，接着将continue赋值为continuation，将current-values赋值为’(1 2 3)，如果current-values的第一个值小于5，则将continue与’(2 3 4)链接成为’(continuation 2 3 4)，因为continue是一个continuation其形式为(lambda (口) 口)，所以continuae调用的结果就是返回’(continuation 2 3 4)并且流程跳到给here-with-values赋值的地方，然后继续执行，当if条件满足则退出。</p>
+<p>##总结##</p>
+<p>Schmeme中的continuation的实现在思路上跟C中的setjmp()是相同的，但实现更复杂，功能也就更加强大。可以说setjmp()实现的功能是continuation的子集，但我们可以借助setjmp()来方便理解，利用continuation可以实现更加复杂的功能，比如用户态的进程即协程(coroutine)等。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/语言/">语言</a>
+  </div>
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://onesmash.github.io/2013/06/08/C-Scheme-flow-control/" data-title="C与Scheme流程控制比较 | 梦幻岛" data-tsina="1824970160" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2013/08/13/lua-nan-trick/" title="Lua NaN Trick">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  Lua NaN Trick</span>
+</a>
+</div>
+
+
+</nav>
+
+	
+</div>  
+      
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div id="authorInfo">
+	
+		<div class="author-logo"></div>		
+	
+	
+	<section class="author-info">
+		
+			<p> 举个栗子…… </p>
+		
+		
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1824970160" target="_blank" title="weibo"></a>
+		
+		
+		<a href="https://twitter.com/xuhui122000" target="_blank" title="twitter"></a>
+		
+		
+		<a href="https://github.com/onesmash" target="_blank" title="github"></a>
+		
+		
+	</div>
+</div>
+<aside class="clearfix">
+
+
+  
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">十月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">六月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li></ul>
+  </div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/App/" title="App">App<sup>1</sup></a></li>
+		
+			<li><a href="/tags/C/" title="C++">C++<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Lua/" title="Lua">Lua<sup>2</sup></a></li>
+		
+			<li><a href="/tags/ObjC/" title="ObjC">ObjC<sup>1</sup></a></li>
+		
+			<li><a href="/tags/SQLite/" title="SQLite">SQLite<sup>1</sup></a></li>
+		
+			<li><a href="/tags/iOS/" title="iOS">iOS<sup>3</sup></a></li>
+		
+			<li><a href="/tags/shadowsocks/" title="shadowsocks">shadowsocks<sup>1</sup></a></li>
+		
+			<li><a href="/tags/代理/" title="代理">代理<sup>1</sup></a></li>
+		
+			<li><a href="/tags/安全/" title="安全">安全<sup>1</sup></a></li>
+		
+			<li><a href="/tags/工具/" title="工具">工具<sup>1</sup></a></li>
+		
+			<li><a href="/tags/操作系统/" title="操作系统">操作系统<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据库/" title="数据库">数据库<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据结构/" title="数据结构">数据结构<sup>1</sup></a></li>
+		
+			<li><a href="/tags/语言/" title="语言">语言<sup>3</sup></a></li>
+		
+		</ul>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  //back to top
+  function backToTop(){
+    var buttonHTML = $("<a href=\"#top\" id=\"back-top\">" + "<span>Back to Top</span></a>");
+    buttonHTML.appendTo($("body"));
+    var buttonToTop = $("#back-top");
+    // hide #back-top first
+    buttonToTop.hide();
+
+    // fade in #back-top
+    $(function() {
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                buttonToTop.fadeIn();
+            } else {
+                buttonToTop.fadeOut();
+            }
+        });
+        // scroll body to 0px on click
+        buttonToTop.click(function() {
+            $('body,html').animate({
+                scrollTop: 0
+            }, 800);
+            return false;
+        });
+    });
+  }
+  backToTop();
+
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      ta = $('#toc.toc-aside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+
+  var show = true;
+  c.click(function(){
+    if(show == true){
+        a.addClass('fadeOut').css('display', 'none');
+        ta.css('display', 'block').addClass('fadeIn');
+        m.addClass('moveMain');  
+    }else{
+        a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');     
+        ta.css('display', 'none'); 
+        m.removeClass('moveMain');
+        $('#toc.toc-aside').css('display', 'none');
+    }
+    show = !show;
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,240-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-79992544-1', 'onesmash.github.io/');  
+ga('send', 'pageview');
+</script>
+
+
+  </body>
+</html>

@@ -1,0 +1,451 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>Lua number到int32的转换 | 梦幻岛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="徐晖">
+    
+    <meta name="description" content="在Lua源代码的llimits.h头文件中有这么一段宏定义：
+union luai_Cast { double l_d; LUA_INT32 l_p[2]; };
+
+#define lua_number2int32(i,n,t) \
+    { LUAI_EXTRAIEEE \
+    volati">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="xuhui122000" />
+    <meta name="twitter:title" content="Lua number到int32的转换 | 梦幻岛" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/Tinny.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/Tinny.jpg">
+    
+
+	
+	<link href="/highlight/styles/railscasts.css" rel="stylesheet">
+	<script src="/highlight/highlight.pack.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+	
+
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="梦幻岛">梦幻岛</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+                    <ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+					<li>
+					
+					</li>
+                <li><div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div></li>
+
+				</ul>
+			</nav>	
+</div>
+
+    </header>
+    <div id="container" class="clearfix">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2013/08/28/lua-number2int32/" title="Lua number到int32的转换" itemprop="url">Lua number到int32的转换</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://onesmash.github.io" title="徐晖">徐晖</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2013-08-27T16:00:00.000Z" itemprop="datePublished">2013-08-28</time>
+    更新日期:<time datetime="2014-08-23T08:28:03.000Z" itemprop="dateModified">2014-08-23</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>在Lua源代码的llimits.h头文件中有这么一段宏定义：</p>
+<pre><code>union luai_Cast { double l_d; LUA_INT32 l_p[2]; };
+
+#define lua_number2int32(i,n,t) \
+    { LUAI_EXTRAIEEE \
+    volatile union luai_Cast u; u.l_d = (n) + 6755399441055744.0; \
+    (i) = (t)u.l_p[LUA_IEEEENDIANLOC]; }
+</code></pre><p>这lua_number2int32宏的作用是把双精度浮点数double转换成int。这个宏的工作流程是这样的：</p>
+<ol>
+<li>double类型的n与6755399441055744.0相加，赋值给u</li>
+<li>将u的低4字节赋值给int类型的i</li>
+</ol>
+<p>据我做的简单测试显示，在MacOS上该宏与简单地强制类型转换速度差不多，在windows 7 32位系统上分别用mingw和vc编译跑结果都显示该宏比强制类型转换速度要快，测试代码如下：</p>
+<pre><code>#include &lt;cstdlib&gt;
+#include &lt;ctime&gt;
+#include &lt;iostream&gt;
+using namespace std;
+
+union luai_Cast { double l_d; int l_p[2]; };
+
+#define lua_number2int32(i,n,t) \
+  { volatile union luai_Cast u; u.l_d = (n) + 6755399441055744.0; \
+  (i) = (t)u.l_p[0]; }
+
+#define NUMS 100000000
+
+int main(int argc, char** argv) {
+    srand( time( NULL ) );
+    clock_t t;
+    volatile int j;
+
+    double* d = new double[NUMS];
+    for(int i = 0; i &lt; NUMS; i++) {
+        d[i] = rand() * 1.0f;
+    }
+
+    t = clock();
+    for(int i = 0; i &lt; NUMS; i++) {
+        j = (int)d[i];
+    }
+    t = clock() - t;
+    cout &lt;&lt; ((float)t) / CLOCKS_PER_SEC &lt;&lt; endl;
+
+    t = clock();
+    for(int i = 0; i &lt; NUMS; i++) {
+        lua_number2int32(j, d[i], int);
+    }
+    t = clock() - t;
+    cout &lt;&lt; ((float)t) / CLOCKS_PER_SEC &lt;&lt; endl;
+
+    return 0;
+}
+</code></pre><p>这篇文章里会讨论该宏的工作原理，至于为什么会产生速度差异不在讨论范围。</p>
+<p>双精度浮点数的表示在我之前的文章<a href="/2013/08/13/lua-nan-trick/">lua NaN trick</a>有介绍，这里就不再累赘。我们来看一下8.75 = 1000.11 = 1.00011 * 2^3在big-endian系统下的表示：</p>
+<pre><code>0 | 10000000010 | 000110…0
+</code></pre><p>其中第一部分1比特，第二部分11比特，第三部分52比特。如果将第三部分向右位移52 - 3 = 49位，那么该浮点数的低4字节表示的不就是int 8了吗！我们可以自己写位移操作，但这么做一来麻烦，二来没有利用FPU，那有没有既不用位移又能利用FPU的解决方案的呢？答案是必须有！我们来看一下8.75 + 256这个计算是怎么完成的：</p>
+<ol>
+<li>8.75 = 1000.11 = 1.00011 * 2^3</li>
+<li>256 = 1.0 * 2^8</li>
+<li>指数对齐，小数向大数对齐，对齐后8.75 = 0.0000100011 * 2^8</li>
+<li>相加0.0000100011 <em> 2^8 + 1.0 </em> 2^8 = 1.0000100011 * 2^8</li>
+<li>标准化表示成1.xxxxx * 2^x形式</li>
+</ol>
+<p>上述过程中指数对齐不就是一个位移操作吗，浮点数相加有FPU的情况下必须由FPU完成啊。基于这个思想我们将需要转型成int的浮点数加上1.0 <em> 2^52(二进制)，那么经过上述的过程之后取该浮点数的低4字节就是转型后的数值。正的浮点数通过加上1.0 </em> 2^52来转成int是没有问题的，但是如果是负的浮点数呢？我们来看看-8.75 + 1.0 * 2^52会是什么结果：</p>
+<ol>
+<li>-8.75 = -1000.11 = -1.00011 * 2^3</li>
+<li>1.0 * 2^52</li>
+<li>指数对齐，-8.75 = -0.0…01000 * 2^52(小数点和1之间有48位0，小数部分这里直接舍弃，当然还有其他处理方式这里不讨论)</li>
+<li>1.0 <em> 2^52 - 0.0…01000 </em> 2^52 = 0.1…1000 * 2^52(49位1)</li>
+<li>标准化1.1…10000 * 2^51</li>
+</ol>
+<p>我们可以看到如果在第4步就停止的话，那么转型结果是正确的，但是由于第5步的标准化过程，导致结果左移了1位。如果我们将1.0 <em> 2^52(二进制)换成1.1 </em> 2^52(二进制)，那么在做减法的时候就能防止最高位变成0，在标准化的时候也就不会产生向左位移的结果。最后我们将1.1 * 2^52(二进制)转化为十进制就是上文那个宏中那个神奇的数字6755399441055744.0了！</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/语言/">语言</a><a href="/tags/Lua/">Lua</a>
+  </div>
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://onesmash.github.io/2013/08/28/lua-number2int32/" data-title="Lua number到int32的转换 | 梦幻岛" data-tsina="1824970160" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2016/01/07/Git使用-merge和rebase介绍/" title="Git使用：merge和rebase介绍">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  Git使用：merge和rebase介绍</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2013/08/13/lua-nan-trick/"  title="Lua NaN Trick">
+ <strong>NEXT:</strong><br/> 
+ <span>Lua NaN Trick
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+</div>  
+      
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div id="authorInfo">
+	
+		<div class="author-logo"></div>		
+	
+	
+	<section class="author-info">
+		
+			<p> 举个栗子…… </p>
+		
+		
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1824970160" target="_blank" title="weibo"></a>
+		
+		
+		<a href="https://twitter.com/xuhui122000" target="_blank" title="twitter"></a>
+		
+		
+		<a href="https://github.com/onesmash" target="_blank" title="github"></a>
+		
+		
+	</div>
+</div>
+<aside class="clearfix">
+
+
+  
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">十月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">六月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li></ul>
+  </div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/App/" title="App">App<sup>1</sup></a></li>
+		
+			<li><a href="/tags/C/" title="C++">C++<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Lua/" title="Lua">Lua<sup>2</sup></a></li>
+		
+			<li><a href="/tags/ObjC/" title="ObjC">ObjC<sup>1</sup></a></li>
+		
+			<li><a href="/tags/SQLite/" title="SQLite">SQLite<sup>1</sup></a></li>
+		
+			<li><a href="/tags/iOS/" title="iOS">iOS<sup>3</sup></a></li>
+		
+			<li><a href="/tags/shadowsocks/" title="shadowsocks">shadowsocks<sup>1</sup></a></li>
+		
+			<li><a href="/tags/代理/" title="代理">代理<sup>1</sup></a></li>
+		
+			<li><a href="/tags/安全/" title="安全">安全<sup>1</sup></a></li>
+		
+			<li><a href="/tags/工具/" title="工具">工具<sup>1</sup></a></li>
+		
+			<li><a href="/tags/操作系统/" title="操作系统">操作系统<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据库/" title="数据库">数据库<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据结构/" title="数据结构">数据结构<sup>1</sup></a></li>
+		
+			<li><a href="/tags/语言/" title="语言">语言<sup>3</sup></a></li>
+		
+		</ul>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  //back to top
+  function backToTop(){
+    var buttonHTML = $("<a href=\"#top\" id=\"back-top\">" + "<span>Back to Top</span></a>");
+    buttonHTML.appendTo($("body"));
+    var buttonToTop = $("#back-top");
+    // hide #back-top first
+    buttonToTop.hide();
+
+    // fade in #back-top
+    $(function() {
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                buttonToTop.fadeIn();
+            } else {
+                buttonToTop.fadeOut();
+            }
+        });
+        // scroll body to 0px on click
+        buttonToTop.click(function() {
+            $('body,html').animate({
+                scrollTop: 0
+            }, 800);
+            return false;
+        });
+    });
+  }
+  backToTop();
+
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      ta = $('#toc.toc-aside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+
+  var show = true;
+  c.click(function(){
+    if(show == true){
+        a.addClass('fadeOut').css('display', 'none');
+        ta.css('display', 'block').addClass('fadeIn');
+        m.addClass('moveMain');  
+    }else{
+        a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');     
+        ta.css('display', 'none'); 
+        m.removeClass('moveMain');
+        $('#toc.toc-aside').css('display', 'none');
+    }
+    show = !show;
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,240-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-79992544-1', 'onesmash.github.io/');  
+ga('send', 'pageview');
+</script>
+
+
+  </body>
+</html>

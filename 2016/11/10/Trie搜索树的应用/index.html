@@ -1,0 +1,490 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>Trie搜索树的应用 | 梦幻岛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="徐晖">
+    
+    <meta name="description" content="最近在折腾一个代理的App，要实现一个根据域名来决定是否走代理的功能。实现的思路很简单，获取被墙屏蔽的域名列表，根据这个列表来判断是否需要走代理。被屏蔽的域名列表github上有项目在维护（点击查看）。有了列表之后就可以通过编写Proxy auto-config告诉浏览器选择代理的规则。
+###Pr">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="xuhui122000" />
+    <meta name="twitter:title" content="Trie搜索树的应用 | 梦幻岛" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/Tinny.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/Tinny.jpg">
+    
+
+	
+	<link href="/highlight/styles/railscasts.css" rel="stylesheet">
+	<script src="/highlight/highlight.pack.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+	
+
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="梦幻岛">梦幻岛</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+                    <ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+					<li>
+					
+					</li>
+                <li><div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div></li>
+
+				</ul>
+			</nav>	
+</div>
+
+    </header>
+    <div id="container" class="clearfix">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2016/11/10/Trie搜索树的应用/" title="Trie搜索树的应用" itemprop="url">Trie搜索树的应用</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://onesmash.github.io" title="徐晖">徐晖</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2016-11-09T16:00:00.000Z" itemprop="datePublished">2016-11-10</time>
+    更新日期:<time datetime="2016-11-10T14:53:39.000Z" itemprop="dateModified">2016-11-10</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>最近在折腾一个代理的App，要实现一个根据域名来决定是否走代理的功能。实现的思路很简单，获取被墙屏蔽的域名列表，根据这个列表来判断是否需要走代理。被屏蔽的域名列表github上有项目在维护（<a href="https://github.com/gfwlist/gfwlist" target="_blank" rel="external">点击查看</a>）。有了列表之后就可以通过编写<a href="https://zh.wikipedia.org/wiki/%E4%BB%A3%E7%90%86%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE" target="_blank" rel="external">Proxy auto-config</a>告诉浏览器选择代理的规则。</p>
+<p>###Proxy auto-config###</p>
+<p>Proxy auto-config文件的内容其实就是一段JS代码。这段代码最重要的就是要实现一个函数：</p>
+<pre><code>FindProxyForURL(url, host)
+{
+    if(host === somehost) {
+        return &apos;SOCKS5 127.0.0.1:1080&apos;;
+    } else {
+        return &apos;DIRECT&apos;; 
+    }
+}
+</code></pre><p>上面的代码只是一个简单实例，不难理解，如果host等于somehost则使用SOCKS5代理，否则就不使用代理。</p>
+<p>github上的<a href="https://github.com/JinnLynn/genpac" target="_blank" rel="external">genpac</a>能够根据上面提到的屏蔽列表生成一个PAC文件。该项目生成的PAC文件的FindProxyForURL函数实现很直观，就是两个for循环，外层循环遍历域名列表，内层循环做域名的后缀匹配，如果跟列表中的域名有相同的后缀则使用代理，否则不使用代理，代码基本如下（经过我的加工）：</p>
+<pre><code>FindProxyForURL(url, host)
+{
+    for(i = 0, i &lt; domainList.length; i++) {
+        var domain = domainList[i];
+        var j = 0;
+        for(; j &lt; host.length; j++) {
+            if(host[host.length - j - 1] != domain[domain.length - j - 1]) {
+                return &apos;DIRECT&apos;;
+            }
+        }
+        if(domain[j] === &apos;.&apos;) {
+            return &apos;SOCKS5 127.0.0.1:1080&apos;;
+        } else {
+            return &apos;DIRECT&apos;;
+        }
+    }
+}
+</code></pre><p>假设host的长度为m，domainList的长度为n，则FindProxyForURL的时间复杂度为O(mn)，在最差的情况下即m等于n，则时间复杂度为O(n^2)。目前维护的屏蔽列表生成的域名大概有5000条，每次HTTP请求前都要做个几千次的字符串匹配，在PC端上也无所谓，但是在移动设备上想想都觉得蛋疼。</p>
+<p>###使用Trie加速匹配###</p>
+<p><a href="https://en.wikipedia.org/wiki/Trie" target="_blank" rel="external">trie</a>读作try，是一种用于搜索的树状结构。使用域名作为key，我们来看一下trie的结构:</p>
+<p><img src="./trie.jpg" alt="trie"></p>
+<p>上图的trie是由ditu.baidu.com、news.baidu.com、163.com这几个域名构成，通过上图我们可以归纳trie的几个特点：</p>
+<ol>
+<li>每个字符都是一个节点</li>
+<li>公共子串共享节点</li>
+</ol>
+<p>trie的搜索是很直观的，从根节点出发，一个节点一个节点匹配，遇到不匹配的节点就结束匹配，搜索失败，所有字符都匹配到了则搜索成功。可以看到使用trie来做域名匹配后，字符的比较次数只跟域名的长度相关，跟屏蔽列表的长度无关，假设匹配的域名长度为n，则时间复杂度为O(n)。</p>
+<p>以下是针对域名匹配实现的trie的代码，由于没有删除更改需求就只实现了插入和查找。</p>
+<p>域名的插入：</p>
+<pre><code>Trie.prototype.add = function(key, value) {
+    var i = 0;
+    var term = key.charAt(i);
+    var node = this.root;
+    while(term) {
+        var child = node.children[term];
+        if(!child) {
+            child = new TrieNode(term);
+            node.children[term] = child;
+        }
+        node = child;
+        term = key.charAt(++i);
+    }
+    node.value = value;
+}
+</code></pre><p>子节点的存储也可以使用排序数组，由于是JS代码就直接使用了字典。</p>
+<p>域名的查找：</p>
+<pre><code>Trie.prototype.match = function(key) {
+    var i = 0;
+    var term = key.charAt(key.length - i - 1);
+    var node = this.root;
+    while(term) {
+        var child = node.children[term];
+        if(child) {
+            node = child;
+            term = key.charAt(key.length - (++i) - 1));
+            continue;
+        }
+        if(term === &apos;.&apos;) {
+            return node.value;
+        } else {
+            return null;
+        }
+    }
+    return node.value;
+}
+</code></pre><p>###性能对比###</p>
+<p>上面理论分析已经证明使用trie时间复杂度是大大的降低。下面我用实测数据来一个更直观的对比。genpac的实现的匹配速度是跟屏蔽列表的长度相关的，所以测试了匹配列表的第一项与最后一项的耗时。使用trie后理论上匹配只跟被匹配字符串的长度有关，为了对比也测试了匹配第一项与最后一项的耗时。</p>
+<p>测试机配置mac 2.4 GHz Intel Core i7，第一项域名为4pppc.gov.tw，最后一项域名为zzux.com，下面是数据：</p>
+<ol>
+<li><p>genpac生成的PAC代码耗时</p>
+<p> 匹配第一项：1402.212ns</p>
+<p> 匹配最后一项：282024.378ns</p>
+<p> 平均：141713.295ns</p>
+</li>
+<li><p>使用trie匹配耗时</p>
+<p> 匹配第一项：2809.283ns</p>
+<p> 匹配第后一项：1406.846ns</p>
+<p> 平均：2108.0645ns</p>
+</li>
+</ol>
+<p>运行数据跟理论是一致的，genpac生成的代码匹配速度是跟屏蔽列表相关的，所以最后一项的匹配耗时远远超过第一项匹配耗时。使用trie之后匹配速度是跟被匹配域名的长度相关，这里第一项域名比最后一项域名要长，所以耗时也比较多。但是从平均耗时来看trie的优势是一目了然的，差不多有70倍的速度提高。</p>
+<p>如果对使用trie的PAC感兴趣可以点击本人的<a href="https://github.com/onesmash/fss/blob/master/FastPAC.js" target="_blank" rel="external">repo</a>。</p>
+<p>###再说点什么</p>
+<p>在工作项目中有一个电话本的联系人匹配也用到了trie，这里就简单的讲一下思路。比如电话本中有这么一项：</p>
+<pre><code>姓名：小明
+电话：13666382601
+</code></pre><p>键盘是九宫格形式，要求输入姓名拼音首字母和电话的任一部分都能匹配到，连续输入匹配越精确。我的实现如下：</p>
+<ol>
+<li><p>‘小明’姓名首字母为xm，对应到九宫格键盘上的数字为96，即以96来代表小明，将字母都归到数字</p>
+</li>
+<li><p>计算96和13666382601的所有后缀</p>
+<pre><code>96
+ 6
+
+13666382601
+ 3666382601
+  666382601
+   66382601
+    6382601
+     382601
+      82601
+       2601
+        601
+         01
+          1
+</code></pre></li>
+<li><p>将这些后缀作为key插入到trie中，value为该联系人信息</p>
+</li>
+</ol>
+<p>接下来就能够用trie来做联系人匹配了，这种存储后缀的trie有一个名称叫做suffix trie，有兴趣的可以自行google。               </p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/代理/">代理</a><a href="/tags/数据结构/">数据结构</a>
+  </div>
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://onesmash.github.io/2016/11/10/Trie搜索树的应用/" data-title="Trie搜索树的应用 | 梦幻岛" data-tsina="1824970160" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+
+<div class="next">
+<a href="/2016/11/01/加解密流程及安全相关展开/"  title="加解密流程及安全相关展开">
+ <strong>NEXT:</strong><br/> 
+ <span>加解密流程及安全相关展开
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+</div>  
+      
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div id="authorInfo">
+	
+		<div class="author-logo"></div>		
+	
+	
+	<section class="author-info">
+		
+			<p> 举个栗子…… </p>
+		
+		
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1824970160" target="_blank" title="weibo"></a>
+		
+		
+		<a href="https://twitter.com/xuhui122000" target="_blank" title="twitter"></a>
+		
+		
+		<a href="https://github.com/onesmash" target="_blank" title="github"></a>
+		
+		
+	</div>
+</div>
+<aside class="clearfix">
+
+
+  
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">十月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">六月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li></ul>
+  </div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/App/" title="App">App<sup>1</sup></a></li>
+		
+			<li><a href="/tags/C/" title="C++">C++<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Lua/" title="Lua">Lua<sup>2</sup></a></li>
+		
+			<li><a href="/tags/ObjC/" title="ObjC">ObjC<sup>1</sup></a></li>
+		
+			<li><a href="/tags/SQLite/" title="SQLite">SQLite<sup>1</sup></a></li>
+		
+			<li><a href="/tags/iOS/" title="iOS">iOS<sup>3</sup></a></li>
+		
+			<li><a href="/tags/shadowsocks/" title="shadowsocks">shadowsocks<sup>1</sup></a></li>
+		
+			<li><a href="/tags/代理/" title="代理">代理<sup>1</sup></a></li>
+		
+			<li><a href="/tags/安全/" title="安全">安全<sup>1</sup></a></li>
+		
+			<li><a href="/tags/工具/" title="工具">工具<sup>1</sup></a></li>
+		
+			<li><a href="/tags/操作系统/" title="操作系统">操作系统<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据库/" title="数据库">数据库<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据结构/" title="数据结构">数据结构<sup>1</sup></a></li>
+		
+			<li><a href="/tags/语言/" title="语言">语言<sup>3</sup></a></li>
+		
+		</ul>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  //back to top
+  function backToTop(){
+    var buttonHTML = $("<a href=\"#top\" id=\"back-top\">" + "<span>Back to Top</span></a>");
+    buttonHTML.appendTo($("body"));
+    var buttonToTop = $("#back-top");
+    // hide #back-top first
+    buttonToTop.hide();
+
+    // fade in #back-top
+    $(function() {
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                buttonToTop.fadeIn();
+            } else {
+                buttonToTop.fadeOut();
+            }
+        });
+        // scroll body to 0px on click
+        buttonToTop.click(function() {
+            $('body,html').animate({
+                scrollTop: 0
+            }, 800);
+            return false;
+        });
+    });
+  }
+  backToTop();
+
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      ta = $('#toc.toc-aside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+
+  var show = true;
+  c.click(function(){
+    if(show == true){
+        a.addClass('fadeOut').css('display', 'none');
+        ta.css('display', 'block').addClass('fadeIn');
+        m.addClass('moveMain');  
+    }else{
+        a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');     
+        ta.css('display', 'none'); 
+        m.removeClass('moveMain');
+        $('#toc.toc-aside').css('display', 'none');
+    }
+    show = !show;
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,240-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-79992544-1', 'onesmash.github.io/');  
+ga('send', 'pageview');
+</script>
+
+
+  </body>
+</html>

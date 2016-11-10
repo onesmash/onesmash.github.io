@@ -1,0 +1,490 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>mmap的使用及性能分析 | 梦幻岛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="徐晖">
+    
+    <meta name="description" content="###Page Cache###
+Page cache是内核缓存文件内容的内存块，一般大小为4KB，可以通过sysconf(_SC_PAGE_SIZE)获取当前系统page cache大小。Page cache的引入解决了与文件操作先关的两个严重的问题：
+
+跟内存相比磁盘的读写难以接受的缓慢
+文件内">
+    
+    
+    
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="xuhui122000" />
+    <meta name="twitter:title" content="mmap的使用及性能分析 | 梦幻岛" />
+      
+    
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/Tinny.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/Tinny.jpg">
+    
+
+	
+	<link href="/highlight/styles/railscasts.css" rel="stylesheet">
+	<script src="/highlight/highlight.pack.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+	
+
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="梦幻岛">梦幻岛</a></h1>
+				<h2 class="blog-motto"></h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+                    <ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+					<li>
+					
+					</li>
+                <li><div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div></li>
+
+				</ul>
+			</nav>	
+</div>
+
+    </header>
+    <div id="container" class="clearfix">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2016/06/28/mmap的使用及性能分析/" title="mmap的使用及性能分析" itemprop="url">mmap的使用及性能分析</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://onesmash.github.io" title="徐晖">徐晖</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2016-06-27T16:00:00.000Z" itemprop="datePublished">2016-06-28</time>
+    更新日期:<time datetime="2016-06-28T11:21:07.000Z" itemprop="dateModified">2016-06-28</time>
+    
+  </p>
+</header>
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		
+		</div>
+		
+		<p>###Page Cache###</p>
+<p><a href="https://en.wikipedia.org/wiki/Page_cache" target="_blank" rel="external">Page cache</a>是内核缓存文件内容的内存块，一般大小为4KB，可以通过sysconf(_SC_PAGE_SIZE)获取当前系统page cache大小。Page cache的引入解决了与文件操作先关的两个严重的问题：</p>
+<ol>
+<li>跟内存相比磁盘的读写难以接受的缓慢</li>
+<li>文件内容在进程间共享</li>
+</ol>
+<p>我们以read系统调用为例来描述一个读操作的流程：</p>
+<ol>
+<li><p>从文件data.dat的开头读取1KB数据</p>
+<p> <img src="./read1.png" alt="read1"></p>
+</li>
+<li><p>内核首先检查是否有命中的page cache，若果没有命中则分配一个page cache</p>
+<p> <img src="./read2.png" alt="read2"></p>
+<p> 上图中“file1 #1”表示文件file1的索引为1的page cache</p>
+</li>
+<li><p>从磁盘读取包含所需数据的4KB数据存储到page cache中</p>
+<p> <img src="./read3.png" alt="read3"></p>
+</li>
+<li><p>内核将page cache中用户所需的1KB数据拷贝到用户空间内存中</p>
+<p> <img src="./read4.png" alt="read4"></p>
+</li>
+</ol>
+<p>###mmap###</p>
+<p>上节中通过系统调用read读取文件需要经过两次数据拷贝，一次从磁盘拷贝到page cache，一次从page cache拷贝到用户空间内存。使用本节介绍的内存映射技术可以免掉page cache到用户内存的拷贝。内存映射是一种将用户空间虚拟地址直接映射到page cache的技术。</p>
+<p><img src="./mmap1.png" alt="mmap1"></p>
+<p>上图描述了文件data.dat的3个page cache在用户虚拟内存空间中的映射关系。当一个文件被映射到用户虚拟内存空间中时，文件内容并不会全部被加载到page cache中，而是通过缺页中断按需加载到内存中。</p>
+<p>在类Unix系统中可以通过mmap系统调用来实现用户空间虚拟内存映射，mmap的函数定义为：</p>
+<pre><code>void* mmap(void* start, size_t len, int prot, int flags, int fd, off_t offset)
+</code></pre><p><img src="./mmap2.png" alt="mmap2"></p>
+<p>上图显示了start，len， offset这几个参数的意义，start只是一个建议并不能保证一定能映射到start开始的内存地址上，如果start为NULL，则不特别指定开始地址由内核决定。</p>
+<p>参数port指定了映射内存区域的访问权限：</p>
+<ul>
+<li>PORT_READ：内存可读</li>
+<li>PORT_WRITE：内存可写</li>
+<li>PORT_EXEC：内存可执行</li>
+</ul>
+<p>参数falgs指定了映射对象的类型以及以及是否能在进程间共享</p>
+<ul>
+<li>MAP_ANON映射没有关联的文件（匿名内存映射）</li>
+<li>MAP_FILE映射到文件</li>
+<li>MAP_SHARED共享映射</li>
+<li>MAP_PRIVATE私有映射，写时拷贝</li>
+</ul>
+<p>更加详细的解释自行man mmap。</p>
+<p>####mmap read####</p>
+<pre><code>int fd = open(file_path, O_RDONLY);
+size_t size = lseek(fd, 0, SEEK_END);
+lseek(fd, 0, SEEK_SET);
+void* base = mmap(0, size, PROT_READ, MAP_SHARED, fd, 0)
+</code></pre><p>####mmap write####</p>
+<pre><code>int fd = open(file_path, O_RDWR, 0644);
+void* base = mmap(0, size, PROT_WRITE, MAP_SHARED, fd, 0)
+</code></pre><p>####mmap exec####</p>
+<p>下面演示在内存中动态创建函数并执行（在iOS系统无法执行）。addOne是我们想要动态创建的函数：</p>
+<pre><code>int addOne(int num)
+{
+    return num + 1;
+}
+</code></pre><p>该函数包含在mexectest.c中，执行gcc -c mexectest.c生成mexectest.o。OSX系统使用otool，Linux系统使用objdump从.o文件中获取机器码。</p>
+<pre><code>otool -t mexectest.o
+</code></pre><p>下图中红色框内的即是机器码</p>
+<p><img src="./exec1.png" alt="exec1"></p>
+<p>下面为动态创建函数并运行的部分代码，全部代码参考<a href="https://github.com/onesmash/MMapExecDemo" target="_blank" rel="external">repo</a></p>
+<pre><code>void mmexec_test()
+{
+    // 函数addOne机器码
+    char code[] = {
+        0x55, 0x48, 0x89, 0xe5, 0x89, 0x7d, 0xfc, 0x8b, 0x7d, 0xfc, 0x83, 0xc7, 0x01, 0x89, 0xf8, 0x5d, 0xc3
+    };
+
+    void* ptr = mmap(0, sizeof(code), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if(ptr == MAP_FAILED) {
+        perror(&quot;mmap error&quot;);
+        return;
+    }
+
+    memcpy(ptr, code, sizeof(code));
+
+    typedef int (*TestFunc)(int);
+
+    TestFunc func = ptr;
+
+    int res = func(3);
+
+    printf(&quot;result: %d\n&quot;, res);
+}
+</code></pre><p>###mmap性能分析###</p>
+<p>测试代买参见<a href="https://github.com/onesmash/iOSMMapTest" target="_blank" rel="external">repo</a>。</p>
+<p>####写性能测试####</p>
+<p>测试机为iPhone 6P，系统版本为9.3.2</p>
+<p>写256MB数据使用System trace Profile得到的数据</p>
+<p><img src="./performance1.png" alt="performance1"></p>
+<p>红色为使用fwrite的结果，黄色为使用write的结果，蓝色为使用mmap的结果，从时间上来说三种方法并没有明显的差距。可以看到write和fwrite有大量的系统调用，很少虚拟内存操作，而mmap则相反，有大量的虚拟内存操作，很少系统调用。</p>
+<p>####读性能测试####</p>
+<p>使用read系统调用读256MB数据</p>
+<p><img src="./performance_read.png" alt="performance_read"></p>
+<p>使用fread读256MB数据</p>
+<p><img src="./performance_fread.png" alt="performance_fread"></p>
+<p>使用上面两种方式测试用时没有明显的差距。</p>
+<p>使用mmap读取256MB数据</p>
+<p><img src="./performance_mmap1.png" alt="performance_mmap1"></p>
+<p>上图红色为第一次运行的结果，性能远远低于使用read和fread，从CPU Usage我们可以看到CPU的利用率很低。黄色为第二次运行的结果，时间大幅缩短，CPU利用率很高，跟read和fread相比有少许的性能提升。我们来看下图来找出原因：</p>
+<p><img src="./performance_mmap_hard_fault.png" alt="performance_mmap_hard_fault"></p>
+<p><img src="./performance_mmap_soft_fault.png" alt="performance_mmap_soft_fault"></p>
+<p>根据文档<a href="https://developer.apple.com/library/ios/documentation/Performance/Conceptual/ManagingMemory/Articles/AboutMemory.html#//apple_ref/doc/uid/20001880-99598-BAJDDCEA" target="_blank" rel="external">《Memory Usage Performance Guidelines》</a>，当访问没有映射到虚拟内存地址上的物理内存上的数据时，会触发存储器访问中断（memory access fault），该中断有两种类型：</p>
+<ol>
+<li>软中断，被访问的物理内存页在内核中存在，但是还没有被映射到进程虚拟地址空间中（对应于第一节中的Page Cache命中）</li>
+<li>硬中断，内核中没有要访问的物理内存页，这时候会触发真正的缺页中断</li>
+</ol>
+<p>第一张图中可知第一次运行是触发的都是硬中断，第二张图可知触发的都是软中断。</p>
+<p>###结论###</p>
+<p>在iOS系统上使用mmap并不会带来不可思议的性能提示，但是使用mmap能够一定程度上简化文件IO代码的编写，在iOS系统上还要注意内存映射是有大小限制的，一个文件描述符的映射大小不能超过800MB（具体多少没有仔细测试）。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/iOS/">iOS</a><a href="/tags/操作系统/">操作系统</a>
+  </div>
+
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://onesmash.github.io/2016/06/28/mmap的使用及性能分析/" data-title="mmap的使用及性能分析 | 梦幻岛" data-tsina="1824970160" class="share clearfix">
+  </div>
+
+</div>
+</footer>   	       
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2016/06/28/SQLite的事务隔离及并发控制/" title="SQLite的事务隔离及并发控制">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  SQLite的事务隔离及并发控制</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2016/01/07/Git使用-merge和rebase介绍/"  title="Git使用：merge和rebase介绍">
+ <strong>NEXT:</strong><br/> 
+ <span>Git使用：merge和rebase介绍
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+</div>  
+      
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  
+  </div>
+
+<div id="asidepart">
+<div id="authorInfo">
+	
+		<div class="author-logo"></div>		
+	
+	
+	<section class="author-info">
+		
+			<p> 举个栗子…… </p>
+		
+		
+	</section>
+	 
+	<div class="social-font" class="clearfix">
+		
+		<a href="http://weibo.com/1824970160" target="_blank" title="weibo"></a>
+		
+		
+		<a href="https://twitter.com/xuhui122000" target="_blank" title="twitter"></a>
+		
+		
+		<a href="https://github.com/onesmash" target="_blank" title="github"></a>
+		
+		
+	</div>
+</div>
+<aside class="clearfix">
+
+
+  
+
+  
+  <div class="archiveslist">
+    <p class="asidetitle"><a href="/archives">归档</a></p>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">十一月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/10/">十月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/06/">六月 2016</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/01/">一月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li></ul>
+  </div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/App/" title="App">App<sup>1</sup></a></li>
+		
+			<li><a href="/tags/C/" title="C++">C++<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Lua/" title="Lua">Lua<sup>2</sup></a></li>
+		
+			<li><a href="/tags/ObjC/" title="ObjC">ObjC<sup>1</sup></a></li>
+		
+			<li><a href="/tags/SQLite/" title="SQLite">SQLite<sup>1</sup></a></li>
+		
+			<li><a href="/tags/iOS/" title="iOS">iOS<sup>3</sup></a></li>
+		
+			<li><a href="/tags/shadowsocks/" title="shadowsocks">shadowsocks<sup>1</sup></a></li>
+		
+			<li><a href="/tags/代理/" title="代理">代理<sup>1</sup></a></li>
+		
+			<li><a href="/tags/安全/" title="安全">安全<sup>1</sup></a></li>
+		
+			<li><a href="/tags/工具/" title="工具">工具<sup>1</sup></a></li>
+		
+			<li><a href="/tags/操作系统/" title="操作系统">操作系统<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据库/" title="数据库">数据库<sup>1</sup></a></li>
+		
+			<li><a href="/tags/数据结构/" title="数据结构">数据结构<sup>1</sup></a></li>
+		
+			<li><a href="/tags/语言/" title="语言">语言<sup>3</sup></a></li>
+		
+		</ul>
+</div>
+
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  //back to top
+  function backToTop(){
+    var buttonHTML = $("<a href=\"#top\" id=\"back-top\">" + "<span>Back to Top</span></a>");
+    buttonHTML.appendTo($("body"));
+    var buttonToTop = $("#back-top");
+    // hide #back-top first
+    buttonToTop.hide();
+
+    // fade in #back-top
+    $(function() {
+        $(window).scroll(function() {
+            if ($(this).scrollTop() > 200) {
+                buttonToTop.fadeIn();
+            } else {
+                buttonToTop.fadeOut();
+            }
+        });
+        // scroll body to 0px on click
+        buttonToTop.click(function() {
+            $('body,html').animate({
+                scrollTop: 0
+            }, 800);
+            return false;
+        });
+    });
+  }
+  backToTop();
+
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      ta = $('#toc.toc-aside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+
+  var show = true;
+  c.click(function(){
+    if(show == true){
+        a.addClass('fadeOut').css('display', 'none');
+        ta.css('display', 'block').addClass('fadeIn');
+        m.addClass('moveMain');  
+    }else{
+        a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');     
+        ta.css('display', 'none'); 
+        m.removeClass('moveMain');
+        $('#toc.toc-aside').css('display', 'none');
+    }
+    show = !show;
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,240-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+
+
+
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+ga('create', 'UA-79992544-1', 'onesmash.github.io/');  
+ga('send', 'pageview');
+</script>
+
+
+  </body>
+</html>
