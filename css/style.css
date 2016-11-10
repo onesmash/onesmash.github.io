@@ -397,19 +397,21 @@ body >header a {
 }
 #textlogo h1.site-name {
   display: inline;
-  font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Hiragino Sans GB W3", "WenQuanYi Micro Hei", sans-serif;
-  font-size: 160%;
-  line-height: 1.9;
-  font-weight: normal;
+/*font-family font-custom-family*/
+  font-family: "Hiragino Sans GB", "微软雅黑", "STXihei", Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', serif;
+  font-size: 200%;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 @media only screen and (min-width: 768px) {
   #textlogo h1.site-name {
-    font-size: 190%;
+    font-size: 240%;
   }
 }
 @media only screen and (min-width: 1024px) {
   #textlogo h1.site-name {
-    font-size: 220%;
+    font-size: 210%;
   }
 }
 #textlogo h2.blog-motto {
@@ -1707,7 +1709,7 @@ section.comment {
   width: 6.875em;
   height: 6.875em;
   margin: 0 auto;
-  background: no-repeat url("../") left top;
+  background: no-repeat url("../img/myLogo.jpeg") left top;
   -webkit-background-size: 6.875em 6.875em;
   -moz-background-size: 6.875em 6.875em;
   background-size: 6.875em 6.875em;
@@ -1744,8 +1746,11 @@ section.comment {
   }
 }
 .info-logo {
-  font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Hiragino Sans GB W3", "WenQuanYi Micro Hei", sans-serif;
-  line-height: 1.65;
+  font-family: "covered_by_your_graceregular";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 150%;
+  line-height: 1.3em;
   width: 90%;
   margin: 0 auto;
   color: #fff;
@@ -1893,8 +1898,9 @@ footer {
   }
 }
 .copyright {
-  font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Hiragino Sans GB W3", "WenQuanYi Micro Hei", sans-serif;
-  font-size: 0.6em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: "covered_by_your_graceregular";
   width: 100%;
   color: #fff;
   text-align: center;
